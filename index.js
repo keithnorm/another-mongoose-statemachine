@@ -3,27 +3,47 @@
 var _ = require("lodash");
 var Promise = require('bluebird');
 
+function applyDefaultValue(states) {
+  Object.keys(states).forEach((state, i) => {
+    states[state].value = i;
+  });
+}
+
 module.exports = function (schema, options) {
   var states = options.states;
   var transitions = options.transitions;
   var stateNames = _.keys(states);
   var transitionNames = _.keys(transitions);
+  var fieldName = options.fieldName || 'state';
 
   var defaultStateName = getDefaultState(states);
   var defaultState = states[defaultStateName];
 
-  schema.add({ state: { type: String,
-                        enum: stateNames,
-                        default: defaultStateName } });
+  var stateSchema = {};
+  stateSchema[fieldName] = {
+    type: String,
+    enum: stateNames,
+    default: defaultStateName,
+    set: function(val) {
+      this.stateValue = states[val].value;
+      return val;
+    }
+  };
+  schema.add(stateSchema);
 
-  if(_.has(defaultState, 'value')) {
-    schema.add({ stateValue: { type: Number,
-                               default: defaultState.value } });
-
-    schema.statics.getStateValue = function(stateName) {
-      return states[stateName].value;
-    };
+  if (!defaultState.value) {
+    applyDefaultValue(states);
   }
+
+  var stateValueSchema = {};
+  stateValueSchema[`${fieldName}Value`] = {
+    type: Number,
+    default: defaultState.value 
+  };
+  schema.add(stateValueSchema);
+  schema.statics.getStateValue = function(stateName) {
+    return states[stateName].value;
+  };
 
   var transitionMethods = {};
   var transitionStatics = {};
@@ -33,6 +53,7 @@ module.exports = function (schema, options) {
   });
   schema.method(transitionMethods);
   schema.static(transitionStatics);
+
 
   function transitionize(t) {
     return function(callback) {
@@ -78,6 +99,7 @@ module.exports = function (schema, options) {
       }
 
       return (new Promise(function(resolve, reject) {
+        console.log('FIND ONE', query);
         Model.findOne(query).exec(function(err, item) {
           if(err) {
             return reject(err);
@@ -97,6 +119,7 @@ module.exports = function (schema, options) {
           exit = states[from].exit;
 
           query.stateValue = states[from].value;
+          console.log('UPDATE', query, update);
           Model.update(query, update).exec(function(err, r) {
             if (err) {
               return reject(err);

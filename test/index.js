@@ -45,8 +45,8 @@ describe('state machine', function() {
     var Model, model;
 
     before(function() {
-      var schema = new mongoose.Schema();
-
+      var schema = new mongoose.Schema({state: String});
+      
       schema.plugin(statemachine, {
         states: {
           a: {}, b: {}, c: {}
@@ -153,7 +153,8 @@ describe('state machine', function() {
       });
     });
 
-    it('shoudl success only one when concurrent update', function(done) {
+    // TODO: this test is flaky
+    it('should success only one when concurrent update', function(done) {
       var copy = model;
       Promise.join(
         model.x(),
@@ -307,6 +308,34 @@ describe('state machine', function() {
       });
     });
 
+  });
+
+  describe('custom field name for state', () => {
+    var Model;
+
+    before(function() {
+      var schema = new mongoose.Schema();
+
+      schema.plugin(statemachine, {
+        fieldName: 'fooState',
+        states: {
+          a: { value: 0 }, b: { value: 1, default: true }, c: { value: 2 }
+        },
+        transitions: {
+          x: { from: 'a', to: 'b' },
+          y: { from: 'b', to: 'c' },
+          z: { from: ['b', 'c'], to: 'a' }
+        }
+      });
+
+      Model = mongoose.model('CustomStateFieldModel', schema);
+    });
+    
+    it('uses specified field name for state and stateValue', () => {
+      var model = new Model({});
+      expect(model.fooState).to.equal('b');
+      expect(model.fooStateValue).to.equal(1);
+    });
   });
 
 });
