@@ -114,8 +114,8 @@ module.exports = function (schema, options) {
           };
 
           transitionHappend = true;
-          stateChanged = item.state !== transition.to;
-          from = item.state;
+          stateChanged = item[fieldname] !== transition.to;
+          from = item[fieldName];
           exit = states[from].exit;
 
           query[`${fieldName}Value`] = states[from].value;
