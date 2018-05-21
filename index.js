@@ -25,7 +25,7 @@ module.exports = function (schema, options) {
     enum: stateNames,
     default: defaultStateName,
     set: function(val) {
-      this.stateValue = states[val].value;
+      this[`${fieldName}Value`] = states[val].value;
       return val;
     }
   };
@@ -83,11 +83,11 @@ module.exports = function (schema, options) {
 
       if(_.isString(transition.from)) {
         if('*' !== transition.from) {
-          query.stateValue = states[transition.from].value;
+          query[`${fieldName}Value`] = states[transition.from].value;
         }
       } else if(_.isArray(transition.from)) {
         var fromValues = _.map(transition.from, function(from) { return states[from].value; });
-        query.stateValue = { $in: fromValues };
+        query[`${fieldName}Value`] = { $in: fromValues };
       }
 
 
@@ -109,8 +109,8 @@ module.exports = function (schema, options) {
           }
 
           var update = {
-            state: transition.to,
-            stateValue: states[transition.to].value
+            [fieldName]: transition.to,
+            [`${fieldName}Value`]: states[transition.to].value
           };
 
           transitionHappend = true;
@@ -118,16 +118,15 @@ module.exports = function (schema, options) {
           from = item.state;
           exit = states[from].exit;
 
-          query.stateValue = states[from].value;
-          console.log('UPDATE', query, update);
+          query[`${fieldName}Value`] = states[from].value;
           Model.update(query, update).exec(function(err, r) {
             if (err) {
               return reject(err);
             }
 
             instance = instance || item;
-            instance.state = update.state;
-            instance.stateValue = update.stateValue;
+            instance[fieldName] = update[fieldName];
+            instance[`${fieldName}Value`] = update[`${fieldName}Value`];
             resolve(r);
           });
         });
