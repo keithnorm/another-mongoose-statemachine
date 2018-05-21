@@ -1,10 +1,12 @@
 'use strict';
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
 var _ = require("lodash");
 var Promise = require('bluebird');
 
 function applyDefaultValue(states) {
-  Object.keys(states).forEach((state, i) => {
+  Object.keys(states).forEach(function (state, i) {
     states[state].value = i;
   });
 }
@@ -24,8 +26,8 @@ module.exports = function (schema, options) {
     type: String,
     enum: stateNames,
     default: defaultStateName,
-    set: function(val) {
-      this[`${fieldName}Value`] = states[val].value;
+    set: function set(val) {
+      this[fieldName + 'Value'] = states[val].value;
       return val;
     }
   };
@@ -36,34 +38,33 @@ module.exports = function (schema, options) {
   }
 
   var stateValueSchema = {};
-  stateValueSchema[`${fieldName}Value`] = {
+  stateValueSchema[fieldName + 'Value'] = {
     type: Number,
-    default: defaultState.value 
+    default: defaultState.value
   };
   schema.add(stateValueSchema);
-  schema.statics.getStateValue = function(stateName) {
+  schema.statics.getStateValue = function (stateName) {
     return states[stateName].value;
   };
 
   var transitionMethods = {};
   var transitionStatics = {};
-  transitionNames.forEach(function(t) {
+  transitionNames.forEach(function (t) {
     transitionMethods[t] = transitionize(t);
     transitionStatics[t] = staticTransitionize(t);
   });
   schema.method(transitionMethods);
   schema.static(transitionStatics);
 
-
   function transitionize(t) {
-    return function(callback) {
+    return function (callback) {
       var Model = this.constructor;
       return Model[t].call(Model, this, callback);
     };
   }
 
   function staticTransitionize(transitionName) {
-    return function(id, callback) {
+    return function (id, callback) {
       var Model = this;
       var transition = transitions[transitionName];
       var enter = states[transition.to].enter;
@@ -77,19 +78,20 @@ module.exports = function (schema, options) {
       var from;
       var exit;
 
-      if(_.has(defaultState, 'value')) {
+      if (_.has(defaultState, 'value')) {
         toStateValue = states[transition.to].value;
       }
 
-      if(_.isString(transition.from)) {
-        if('*' !== transition.from) {
-          query[`${fieldName}Value`] = states[transition.from].value;
+      if (_.isString(transition.from)) {
+        if ('*' !== transition.from) {
+          query[fieldName + 'Value'] = states[transition.from].value;
         }
-      } else if(_.isArray(transition.from)) {
-        var fromValues = _.map(transition.from, function(from) { return states[from].value; });
-        query[`${fieldName}Value`] = { $in: fromValues };
+      } else if (_.isArray(transition.from)) {
+        var fromValues = _.map(transition.from, function (from) {
+          return states[from].value;
+        });
+        query[fieldName + 'Value'] = { $in: fromValues };
       }
-
 
       query._id = id;
 
@@ -98,52 +100,55 @@ module.exports = function (schema, options) {
         query._id = id._id;
       }
 
-      return (new Promise(function(resolve, reject) {
+      return new Promise(function (resolve, reject) {
         console.log('FIND ONE', query);
-        Model.findOne(query).exec(function(err, item) {
-          if(err) {
+        Model.findOne(query).exec(function (err, item) {
+          var _update;
+
+          if (err) {
             return reject(err);
           }
-          if(!item) {
+          if (!item) {
             return reject(new Error('found null'));
           }
 
-          var update = {
-            [fieldName]: transition.to,
-            [`${fieldName}Value`]: states[transition.to].value
-          };
+          var update = (_update = {}, _defineProperty(_update, fieldName, transition.to), _defineProperty(_update, fieldName + 'Value', states[transition.to].value), _update);
 
           transitionHappend = true;
           stateChanged = item[fieldName] !== transition.to;
           from = item[fieldName];
           exit = states[from].exit;
 
-          query[`${fieldName}Value`] = states[from].value;
-          Model.update(query, update).exec(function(err, r) {
+          query[fieldName + 'Value'] = states[from].value;
+          Model.update(query, update).exec(function (err, r) {
             if (err) {
               return reject(err);
             }
 
             instance = instance || item;
             instance[fieldName] = update[fieldName];
-            instance[`${fieldName}Value`] = update[`${fieldName}Value`];
+            instance[fieldName + 'Value'] = update[fieldName + 'Value'];
             resolve(r);
           });
         });
-      })).then(function(result) {
+      }).then(function (result) {
 
-        if(result.n === 0) {
+        if (result.n === 0) {
           return Promise.reject(new Error('state not changed'));
         }
 
         var callbacks = [];
 
-        if(behavior && transitionHappend) {
+        if (behavior && transitionHappend) {
           callbacks.push(behavior.call(instance));
         }
-        if(result.nModified > 0) {
-          if(exit && stateChanged) { callbacks.push(exit.call(instance)); }
-          if(enter && stateChanged) { callbacks.push(enter.call(instance)); }
+        if (result.nModified > 0) {
+          if (exit && stateChanged) {
+            callbacks.push(exit.call(instance));
+          }
+          if (enter && stateChanged) {
+            callbacks.push(enter.call(instance));
+          }
         }
 
         return Promise.all(callbacks);
@@ -152,11 +157,11 @@ module.exports = function (schema, options) {
   }
 };
 
-
 function getDefaultState(states) {
   var stateNames = _.keys(states);
-  var selected = _.filter(stateNames, function(s) {
+  var selected = _.filter(stateNames, function (s) {
     return !!states[s].default;
   });
   return selected[0] || stateNames[0];
 }
+
