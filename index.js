@@ -114,7 +114,7 @@ module.exports = function (schema, options) {
           };
 
           transitionHappend = true;
-          stateChanged = item[fieldname] !== transition.to;
+          stateChanged = item[fieldName] !== transition.to;
           from = item[fieldName];
           exit = states[from].exit;
 
